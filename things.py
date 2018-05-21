@@ -3,7 +3,7 @@ import sqlite3
 import os
 import sys
 import subprocess
-import functools import lro_cache
+from functools import lru_cache
 from datetime import datetime
 import xml.etree.ElementTree as ET
 
@@ -15,6 +15,16 @@ def parse_date(value):
     except TypeError:
         print('Invalid date {!r}'.format(value), file=sys.stderr)
         raise
+
+
+class TaskWarriorEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, datetime):
+            return obj.strftime('%Y%m%dT%H%M%SZ')
+            # return obj.strftime('%Y%m%dT%H%M%sZ')
+        # Let the base class default method raise the TypeError
+        return json.JSONEncoder.default(self, obj)
+
 
 def parse_notes(notes):
     root = ET.fromstring(notes)
@@ -39,11 +49,13 @@ def is_someday(task):
     return not is_trashed(task) and is_task(task) and is_postponed(task) and is_open(task)
 
 
-@lro_cache
+@lru_cache()
 def get_someday():
-    return subprocess.check_output(['task', 'calc', 'someday']).splitlines()[0]
+    stdout = subprocess.check_output(['task', 'calc', 'someday'])
+    lines = stdout.splitlines()
+    return lines[0].decode('utf-8')
 
-db = sqlite3.connect(os.path.expanduser('~/Library/Containers/com.culturedcode.ThingsMac/Data/Library/Application Support/Cultured Code/Things/Things.sqlite3'))
+
 def dict_factory(cursor, row):
     d = {}
     for idx, col in enumerate(cursor.description):
@@ -51,9 +63,17 @@ def dict_factory(cursor, row):
 
     return d
 
-db.row_factory = dict_factory
+
+def connect():
+    default_path = os.path.expanduser('~/Library/Containers/com.culturedcode.ThingsMac/Data/Library/Application Support/Cultured Code/Things/Things.sqlite3')
+    path = os.getenv('THINGS_DB', default_path)
+    db = sqlite3.connect(path)
+    db.row_factory = dict_factory
+    return db
+
 
 def main():
+    db = connect()
     cur = db.cursor()
     cur.execute('SELECT * FROM TMTask')
     tasks = {}
@@ -127,7 +147,7 @@ def main():
             elif task['status'] == 2:
                 assert not task['trashed']
                 new_task['status'] = 'waiting'
-                new_task['wait'] = 'someday'
+                new_task['wait'] = get_someday()
             elif task['status'] == 3:
                 assert not task['trashed']
                 new_task['status'] = 'completed'
@@ -173,14 +193,17 @@ def main():
             if task['notes'] is not None:
                 annotation_entry = new_task['modified'] or new_task['entry']
                 assert annotation_entry is not None
+                description = parse_notes(task['notes'])
+                if description is not None:
+                    
+                    new_task['annotations'] = [
+                        {
+                            'entry': annotation_entry,
+                            'description': description
+                        }
+                    ]
 
-                new_task['annotations'] = [
-                    {
-                        'entry': annotation_entry,
-                        'description': parse_notes(task['notes'])
-                    }
-                ]
-            print(json.dumps(new_task))
+            print(json.dumps(new_task, cls=TaskWarriorEncoder))
 
 if __name__ == '__main__':
     main()
