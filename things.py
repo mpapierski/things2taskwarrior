@@ -171,7 +171,8 @@ def main():
             if task['startDate']:
                 new_task['start'] = task['startDate']
             if task['stopDate']:
-                new_task['stop'] = task['stopDate']
+                new_task['end'] = task['stopDate']
+
             if task['dueDate']:
                 new_task['due'] = task['dueDate']
 
