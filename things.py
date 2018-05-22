@@ -7,6 +7,7 @@ from functools import lru_cache
 from datetime import datetime
 import xml.etree.ElementTree as ET
 
+
 def parse_date(value):
     if value is None:
         return None
@@ -39,11 +40,14 @@ def is_task(task):
 def is_trashed(task):
     return task['trashed'] == 1
 
+
 def is_postponed(task):
     return task['start'] == 2
 
+
 def is_open(task):
     return task['status'] == 0
+
 
 def is_someday(task):
     return not is_trashed(task) and is_task(task) and is_postponed(task) and is_open(task)
@@ -65,7 +69,8 @@ def dict_factory(cursor, row):
 
 
 def connect():
-    default_path = os.path.expanduser('~/Library/Containers/com.culturedcode.ThingsMac/Data/Library/Application Support/Cultured Code/Things/Things.sqlite3')
+    default_path = os.path.expanduser(
+        '~/Library/Containers/com.culturedcode.ThingsMac/Data/Library/Application Support/Cultured Code/Things/Things.sqlite3')
     path = os.getenv('THINGS_DB', default_path)
     db = sqlite3.connect(path)
     db.row_factory = dict_factory
@@ -88,12 +93,13 @@ def main():
         # Normalize
 
         if task['creationDate'] and task['startDate']:
-                entry = task['creationDate']
-                start = task['startDate']
-                if entry > start:
-                    if start.date() == entry.date():
-                        task['startDate'] = entry
-                        print('Normalize "{!r}" entry={} start={}'.format(task['title'], entry, start), file=sys.stderr)
+            entry = task['creationDate']
+            start = task['startDate']
+            if entry > start:
+                if start.date() == entry.date():
+                    task['startDate'] = entry
+                    print('Normalize "{!r}" entry={} start={}'.format(
+                        task['title'], entry, start), file=sys.stderr)
         task['tags'] = []
         tasks[uuid] = task
 
@@ -113,7 +119,7 @@ def main():
     for tag in cur.fetchall():
         tasks[tag['tasks']]['tags'].append(tag['tags'])
 
-    # Parse "priority"    
+    # Parse "priority"
     for uuid, task in tasks.items():
         if 'CC-Things-Tag-High' in task['tags']:
             task['priority'] = 'H'
@@ -143,7 +149,7 @@ def main():
                 new_task['status'] = 'pending'
             elif task['status'] == 1:
                 assert not task['trashed']
-                pass # ?
+                pass  # ?
             elif task['status'] == 2:
                 assert not task['trashed']
                 new_task['status'] = 'waiting'
@@ -153,18 +159,16 @@ def main():
                 new_task['status'] = 'completed'
 
             assert new_task['status'] is not None
-            
 
             new_task.update({
                 'uuid': uuid.lower(),
                 'entry': task['creationDate'],
-                'description': task['title'],  
-                # 'entry': 
+                'description': task['title'],
+                # 'entry':
             })
 
             if task['project'] is not None:
                 new_task['project'] = tasks[task['project']]['title']
-
 
             if task['userModificationDate']:
                 new_task['modified'] = task['userModificationDate']
@@ -185,8 +189,6 @@ def main():
             if task['tags']:
                 new_task['tags'] = [tags[tag] for tag in task['tags']]
 
-
-
             if not new_task['description']:
                 # Cannot add empty task
                 continue
@@ -196,7 +198,7 @@ def main():
                 assert annotation_entry is not None
                 description = parse_notes(task['notes'])
                 if description is not None:
-                    
+
                     new_task['annotations'] = [
                         {
                             'entry': annotation_entry,
@@ -205,6 +207,7 @@ def main():
                     ]
 
             print(json.dumps(new_task, cls=TaskWarriorEncoder))
+
 
 if __name__ == '__main__':
     main()
