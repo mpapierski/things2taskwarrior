@@ -7,7 +7,7 @@ Uses standalone Things database on macOS. Doesn't use HTTP API aka "Cloud sync".
 
 **WARNING**
 
-Use at your own risk. Not everything can be converted in the same format into TW. After successful import consider doing `task review`.
+Use at your own risk. Not everything can be converted in the same format into TW. After successful import consider to review your task list and update tasks accordingly.
 
 # Requirements 
 
